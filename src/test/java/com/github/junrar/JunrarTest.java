@@ -146,6 +146,28 @@ public class JunrarTest {
                 FileUtils.deleteDirectory(root);
             }
         }
+
+        @Test
+        public void entryInSiblingPrefixDir_ShouldNotWriteOutsideDestination() throws IOException {
+            final File root = TestCommons.createTempDir();
+            try {
+                final File destination = new File(root, "extract");
+                assertThat(destination.mkdirs()).isTrue();
+                // sibling-prefix-traversal.rar holds a single entry named "../extract_evil/pwned.txt"
+                final File rarFile = TestCommons.writeResourceToFolder(root, "sibling-prefix-traversal.rar");
+                final File outsideFile = new File(new File(root, "extract_evil"), "pwned.txt");
+
+                Throwable thrown = catchThrowable(() -> Junrar.extract(rarFile, destination));
+
+                assertThat(thrown)
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Rar contains file with invalid path")
+                        .hasMessageContaining(outsideFile.getPath());
+                assertThat(outsideFile).doesNotExist();
+            } finally {
+                FileUtils.deleteDirectory(root);
+            }
+        }
     }
 
     /**
