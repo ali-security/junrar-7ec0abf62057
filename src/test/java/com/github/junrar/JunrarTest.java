@@ -124,6 +124,28 @@ public class JunrarTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("the destination must exist and point to a directory: " + rarFileOnTemp.getAbsolutePath());
         }
+
+        @Test
+        public void entryWithBackslashParentDirs_ShouldNotWriteOutsideDestination() throws IOException {
+            final File root = TestCommons.createTempDir();
+            try {
+                final File destination = new File(new File(root, "a"), "b");
+                assertThat(destination.mkdirs()).isTrue();
+                // parent-dir.rar holds a single entry named "..\..\tmp\existing-file"
+                final File rarFile = TestCommons.writeResourceToFolder(root, "parent-dir.rar");
+                final File outsideFile = new File(new File(root, "tmp"), "existing-file");
+
+                Throwable thrown = catchThrowable(() -> Junrar.extract(rarFile, destination));
+
+                assertThat(thrown)
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Rar contains file with invalid path")
+                        .hasMessageContaining(outsideFile.getPath());
+                assertThat(outsideFile).doesNotExist();
+            } finally {
+                FileUtils.deleteDirectory(root);
+            }
+        }
     }
 
     /**
